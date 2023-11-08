@@ -1,0 +1,126 @@
+library("twitteR")
+library("tm")
+library("RColorBrewer") ## Pour des palettes de couleurs personnalisées
+library("wordcloud")
+library("dplyr") ## Pour opérateur %>%
+library("magrittr") ## fonction extract2
+library("stringr") ## str_replace_all
+library("markdown")
+library("FactoMineR")
+library("cluster")
+library("ggplot2")
+
+tryCatch({
+  suppressWarnings(load("françois_tweet"))
+  }, error = function(cond){
+    françois_tweet = searchTwitteR("François Hollande", n = 5000, lang = "fr")
+    save(françois_tweet, file = "françois_tweet")
+    load("françois_tweet")
+    })
+f_tweet = twListToDF(françois_tweet)
+
+francois_text = f_tweet$text
+
+
+head(francois_text, 10)
+
+##  [1] "https://t.co/qoJE6Nak3C \nUne ressemblance à François Hollande non? Hollande pigeon ahah pigeon voyageur \xed\xa0\xbd\xed\xb8\x82\xed\xa0\xbd\xed\xb8\x82 #Hollande #France #pigeon #humour"
+##  [2] "RT @mediapart: Ségolène Royal, qui possède plusieurs atouts pour François Hollande, pourrait bien lui être utile en 2017 https://t.co/i8Y3y…"                                 
+##  [3] "Mis à part Paf le chien, à qui François Hollande n'a t il pas proposé de poste ministériel? #tweetprécédent"                                                                  
+##  [4] "RT @humourdegauchee: Souleymane Sylla demande à François Hollande de faire du jour de son agression un jour férié."                                                           
+##  [5] "Juvisy-sur-Orge : la voleuse se fait passer pour la fille de François Hollande https://t.co/VSQFAv00Wd"                                                                       
+##  [6] "#ecologie Notre-Dame-des-Landes : François Hollande en phase avec ses promesses ? https://t.co/2uZsoVa8Hg"                                                                    
+##  [7] "#ecologie Notre-Dame-des-Landes : François Hollande en phase avec ses promesses ? https://t.co/D4RQ8XbAvY"                                                                    
+##  [8] "Mélenchon appelle à voter, sans condition, François Hollande au 2è tour, comme prévu. https://t.co/dSOKIyKn9T"                                                                
+##  [9] "RT @eurasies1: François Hollande nous fait le clown mais c'est un faux-cul..comme l'est aussi Sarkozy.. https://t.co/VHKgnMZZae"                                              
+## [10] "RT @RFImag: Didier Guillaume @partisocialiste \"Le remaniement ministériel pour affirmer la ligne politique de François Hollande \" #MardiPol…"
+
+## On remplace les lettres accentuées par leurs équivalentes non accentuées
+francois_text = str_replace_all(francois_text, "à", "a")
+francois_text = str_replace_all(francois_text, "â", "a")
+francois_text = str_replace_all(francois_text, "ç", "c")
+francois_text = str_replace_all(francois_text, "é", "e")
+francois_text = str_replace_all(francois_text, "è", "e")
+francois_text = str_replace_all(francois_text, "ê", "e")
+francois_text = str_replace_all(francois_text, "ù", "u")
+francois_text = str_replace_all(francois_text, "ï", "i")
+francois_text = str_replace_all(francois_text, "û", "u")
+francois_text = str_replace_all(francois_text, "ô", "o")
+francois_text = str_replace_all(francois_text, "î", "i")
+
+francois_text = str_replace_all(francois_text, "(RT|via)((?:\\b\\W*@\\w+)+)", " ") ## On sort les mot liés aux retweets
+# On sort les caractères particuliers
+francois_text = str_replace_all(francois_text,"\r", " ") ## retour chariot
+francois_text = sapply(francois_text,function(x) iconv(x, "latin1", "ASCII", sub="")) ## émoticônes
+francois_text = str_replace_all(francois_text, "[[:punct:]]", " ") ## On sort la ponctuation
+francois_text = str_replace_all(francois_text, "[[:digit:]]", " ") ## On sort les nombres
+francois_text = str_replace_all(francois_text, "@\\w+", " ") ## On sort les parties liées aux personnes nommés dans les tweets
+francois_text = str_replace_all(francois_text,"https.*", " ") ## On sort les lien HTML
+# On sort les espaces inutiles
+francois_text = str_replace_all(francois_text, "[\t]{2,}", " ") ## plus de deux espaces dans le tweet
+francois_text = str_trim(francois_text) ## espaces de début de tweet
+
+françois_corpus = Corpus(VectorSource(françois_text))
+
+viewDocs = function(corpus, deb = 1, fin = 10){ 
+  ## Permet de lire de l'élément deb à l'élement fin du corpus
+  for (i in deb:fin){
+    message("Elément du corpus numéro :", i)
+    corpus %>% extract2(i) %>% as.character() %>% writeLines()
+  }
+}
+
+viewDocs(françois_corpus)
+
+## Elément du corpus numéro :1
+
+## exclusif le portable de francois hollande en ce moment remaniement
+
+## Elément du corpus numéro :2
+
+## presidentielle primaire a gauche melenchon devient lallie objectif de francois
+
+## Elément du corpus numéro :3
+
+## presidentielle primaire a gauche melenchon devient lallie objectif de francois
+
+## Elément du corpus numéro :4
+
+## exclusif le portable de francois hollande en ce moment remaniement
+
+## Elément du corpus numéro :5
+
+## francois hollande n a pas efface la dette fiscale de yannick noah le point
+
+## Elément du corpus numéro :6
+
+## exclusif le portable de francois hollande en ce moment remaniement
+
+## Elément du corpus numéro :7
+
+## ce soir le president francois hollande sera l invite du h de tf et de france
+
+## Elément du corpus numéro :8
+
+## jean luc melenchon meilleur allie de francois hollande pour
+
+## Elément du corpus numéro :9
+
+## jean luc melenchon meilleur allie de francois hollande pour a priori la candidature de jean luc mele
+
+## Elément du corpus numéro :10
+
+## la spectaculaire montee en puissance des relations paris new delhi
+
+word = c(stopwords("french"), "francois", "hollande", "francoishollande")
+tdm = TermDocumentMatrix(françois_corpus, 
+                         control = list(tolower = TRUE, stopwords = word))
+tdm = as.matrix(tdm)
+
+word_freqs = sort(rowSums(tdm), decreasing=TRUE) 
+
+
+dm = data.frame(word=names(word_freqs), freq=word_freqs)
+
+
+wordcloud(dm$word, dm$freq, max.words = 100,random.order=FALSE, colors=brewer.pal(8, "Dark2"))
